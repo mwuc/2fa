@@ -15,10 +15,10 @@ export function getCSVParserCode() {
      * 解析CSV格式的导入数据
      * 支持2FA导出的CSV格式和Bitwarden Authenticator CSV格式
      * @param {string} csvContent - CSV内容
-     * @returns {Array<string>} - 转换为 otpauth:// URL 格式的数组
+     * @returns {Array} - 包含完整数据的对象数组（包括 category）
      */
     function parseCSVImport(csvContent) {
-      const otpauthUrls = [];
+      const parsedItems = [];
 
       try {
         // 按行分割
@@ -26,7 +26,7 @@ export function getCSVParserCode() {
 
         if (lines.length < 2) {
           console.warn('CSV文件内容太少');
-          return otpauthUrls;
+          return parsedItems;
         }
 
         // 检查第一行是否是标题行
@@ -44,7 +44,24 @@ export function getCSVParserCode() {
               // 查找 otpauth:// URL
               const otpauthMatch = line.match(/otpauth:\\/\\/[^,\\s]+/);
               if (otpauthMatch) {
-                otpauthUrls.push(decodeURIComponent(otpauthMatch[0]));
+                const url = new URL(decodeURIComponent(otpauthMatch[0]));
+                const issuer = url.searchParams.get('issuer') || '';
+                const secret = url.searchParams.get('secret') || '';
+                const pathParts = decodeURIComponent(url.pathname.substring(1)).split(':');
+                const account = pathParts.length > 1 ? pathParts.slice(1).join(':') : '';
+
+                parsedItems.push({
+                  otpauthUrl: decodeURIComponent(otpauthMatch[0]),
+                  serviceName: issuer,
+                  account: account,
+                  secret: secret,
+                  type: 'totp',
+                  digits: parseInt(url.searchParams.get('digits')) || 6,
+                  period: parseInt(url.searchParams.get('period')) || 30,
+                  algorithm: url.searchParams.get('algorithm') || 'SHA1',
+                  counter: 0,
+                  category: ''
+                });
                 console.log('Bitwarden Auth CSV 第', i + 1, '行解析成功');
               }
             } catch (err) {
@@ -52,8 +69,8 @@ export function getCSVParserCode() {
             }
           }
 
-          console.log('成功从 Bitwarden Authenticator CSV 解析', otpauthUrls.length, '条密钥');
-          return otpauthUrls;
+          console.log('成功从 Bitwarden Authenticator CSV 解析', parsedItems.length, '条密钥');
+          return parsedItems;
         }
 
         // 原有的 2FA CSV 格式检测
@@ -62,7 +79,7 @@ export function getCSVParserCode() {
 
         if (!isCSVFormat) {
           console.warn('不是有效的CSV格式');
-          return otpauthUrls;
+          return parsedItems;
         }
 
         // 解析标题行，确定列的索引
@@ -74,8 +91,9 @@ export function getCSVParserCode() {
         const digitsIndex = headers.findIndex(h => h === '位数' || h.toLowerCase() === 'digits');
         const periodIndex = headers.findIndex(h => h.includes('周期') || h.toLowerCase().includes('period'));
         const algoIndex = headers.findIndex(h => h === '算法' || h.toLowerCase() === 'algorithm');
+        const categoryIndex = headers.findIndex(h => h === '分类' || h.toLowerCase() === 'category');
 
-        console.log('CSV列索引:', { serviceIndex, accountIndex, secretIndex, typeIndex, digitsIndex, periodIndex, algoIndex });
+        console.log('CSV列索引:', { serviceIndex, accountIndex, secretIndex, typeIndex, digitsIndex, periodIndex, algoIndex, categoryIndex });
 
         // 解析数据行（跳过标题行）
         for (let i = 1; i < lines.length; i++) {
@@ -92,6 +110,7 @@ export function getCSVParserCode() {
             const digits = digitsIndex >= 0 ? parseInt(fields[digitsIndex]) || 6 : 6;
             const period = periodIndex >= 0 ? parseInt(fields[periodIndex]) || 30 : 30;
             const algo = algoIndex >= 0 ? fields[algoIndex] : 'SHA1';
+            const category = categoryIndex >= 0 ? fields[categoryIndex] : '';
 
             // 验证必要数据
             if (!secret || !secret.trim()) {
@@ -122,22 +141,35 @@ export function getCSVParserCode() {
             if (algo !== 'SHA1') params.set('algorithm', algo);
 
             const otpauthUrl = 'otpauth://totp/' + label + '?' + params.toString();
-            otpauthUrls.push(otpauthUrl);
 
-            console.log('CSV第', i + 1, '行解析成功:', service, account);
+            // 返回包含完整数据的对象，包括 category
+            parsedItems.push({
+              otpauthUrl: otpauthUrl,
+              serviceName: service,
+              account: account,
+              secret: cleanSecret,
+              type: 'totp',
+              digits: digits,
+              period: period,
+              algorithm: algo,
+              counter: 0,
+              category: category
+            });
+
+            console.log('CSV第', i + 1, '行解析成功:', service, account, category ? '(分类: ' + category + ')' : '');
 
           } catch (err) {
             console.error('解析CSV第', i + 1, '行失败:', err);
           }
         }
 
-        console.log('成功从CSV解析', otpauthUrls.length, '条密钥');
+        console.log('成功从CSV解析', parsedItems.length, '条密钥');
 
       } catch (error) {
         console.error('解析CSV失败:', error);
       }
 
-      return otpauthUrls;
+      return parsedItems;
     }
 `;
 }
@@ -149,6 +181,99 @@ export function getCSVParserCode() {
 export function getJSONParserCode() {
 	return `
     // ========== JSON 解析器 ==========
+
+    /**
+     * 解析各种 JSON 格式的导入数据
+     * @param {Object|Array} jsonData - JSON数据
+     * @returns {Array} - 对象数组（含 category）或字符串数组（otpauth URL）
+     */
+    function parseJsonImport(jsonData) {
+      const otpauthUrls = [];
+
+      // 检测 2FA 导出格式: { secrets: [...] }
+      if (jsonData.secrets && Array.isArray(jsonData.secrets)) {
+        console.log('检测到 2FA JSON 导出格式, 共', jsonData.secrets.length, '条');
+
+        const parsedItems = [];
+
+        jsonData.secrets.forEach((secret, index) => {
+          try {
+            // 清理密钥中的空格
+            const secretKey = (secret.secret || '').replace(/\\s+/g, '').toUpperCase();
+            
+            const issuer = secret.issuer || secret.name || '';
+            const account = secret.account || '';
+            const type = (secret.type || 'TOTP').toLowerCase();
+            const digits = secret.digits || 6;
+            const period = secret.period || 30;
+            const algorithm = (secret.algorithm || 'SHA1').toUpperCase();
+            const counter = secret.counter || 0;
+            const category = secret.category || '';
+
+            // 构建 otpauth:// URL
+            let label = '';
+            if (issuer && account) {
+              label = encodeURIComponent(issuer) + ':' + encodeURIComponent(account);
+            } else if (issuer) {
+              label = encodeURIComponent(issuer);
+            } else if (account) {
+              label = encodeURIComponent(account);
+            } else {
+              label = 'Unknown';
+            }
+
+            const params = new URLSearchParams();
+            params.set('secret', secretKey);
+            if (issuer) params.set('issuer', issuer);
+            if (digits !== 6) params.set('digits', digits);
+            if (period !== 30) params.set('period', period);
+            if (algorithm !== 'SHA1') params.set('algorithm', algorithm);
+            if (type === 'hotp') params.set('counter', counter);
+
+            const otpauthUrl = 'otpauth://' + type + '/' + label + '?' + params.toString();
+
+            // 返回包含完整数据的对象，包括 category
+            parsedItems.push({
+              otpauthUrl: otpauthUrl,
+              serviceName: issuer,
+              account: account,
+              secret: secretKey,
+              type: type,
+              digits: digits,
+              period: period,
+              algorithm: algorithm,
+              counter: counter,
+              category: category
+            });
+
+          } catch (err) {
+            console.error('解析 2FA JSON 条目失败 (索引 ' + index + '):', err);
+          }
+        });
+
+        console.log('成功解析 2FA JSON 格式,共 ' + parsedItems.length + ' 条');
+        return parsedItems;
+      }
+
+      // 检测 LastPass JSON 格式
+      if (jsonData.version !== undefined &&
+          jsonData.accounts &&
+          Array.isArray(jsonData.accounts) &&
+          jsonData.accounts.length > 0) {
+
+        const firstAccount = jsonData.accounts[0];
+        if (firstAccount.issuerName !== undefined &&
+            firstAccount.timeStep !== undefined &&
+            (firstAccount.secret !== undefined || firstAccount.pushNotification !== undefined)) {
+          console.log('检测到 LastPass Authenticator 格式');
+          return parseLastPassJSON(jsonData);
+        }
+      }
+
+      // 其他格式返回空数组
+      console.log('未识别的JSON格式');
+      return otpauthUrls;
+    }
 
     /**
      * 解析 LastPass JSON 格式

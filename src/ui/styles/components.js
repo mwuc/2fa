@@ -35,6 +35,18 @@ export function getComponentStyles() {
       transform: translateY(-1px);
     }
 
+    .secret-category {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      margin-left: 6px;
+      background: var(--tag-bg, #e8f4fd);
+      color: var(--tag-color, #3498db);
+      border-radius: 4px;
+      font-weight: 500;
+      vertical-align: middle;
+    }
+
     .secret-header {
       display: flex;
       justify-content: space-between;

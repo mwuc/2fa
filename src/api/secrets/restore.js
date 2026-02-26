@@ -166,6 +166,7 @@ export async function handleExportBackup(request, env, backupKey) {
 						period: secret.period || 30,
 						algorithm: secret.algorithm || 'SHA1',
 						counter: secret.counter || 0,
+						category: secret.category || '',
 						createdAt: secret.createdAt || new Date().toISOString(),
 					})),
 				};
@@ -189,7 +190,7 @@ export async function handleExportBackup(request, env, backupKey) {
 					return '"' + s + '"';
 				};
 
-				const headers = ['服务名称', '账户信息', '密钥', '类型', '位数', '周期(秒)', '算法', '计数器', '创建时间'];
+				const headers = ['服务名称', '账户信息', '密钥', '类型', '位数', '周期(秒)', '算法', '计数器', '分类', '创建时间'];
 				const csvRows = [headers.join(',')];
 
 				sortedSecrets.forEach((secret) => {
@@ -202,6 +203,7 @@ export async function handleExportBackup(request, env, backupKey) {
 						secret.period || 30,
 						escapeCSV(secret.algorithm || 'SHA1'),
 						secret.counter || 0,
+						escapeCSV(secret.category || ''),
 						escapeCSV(secret.createdAt || new Date().toISOString()),
 					];
 					csvRows.push(row.join(','));

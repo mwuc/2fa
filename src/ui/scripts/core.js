@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Core 核心业务逻辑模块
  * 包含密钥管理、OTP生成、二维码、备份等所有核心功能
  */
@@ -143,6 +143,11 @@ export function getCoreCode() {
         }
 
         await renderSecrets();
+
+        // 更新分类过滤器
+        if (typeof updateCategoryFilter === 'function') {
+          updateCategoryFilter();
+        }
       } catch (error) {
         console.error('加载密钥失败:', error);
 
@@ -204,6 +209,7 @@ export function getCoreCode() {
     function createSecretCard(secret) {
       const logoUrl = getServiceLogo(secret.name);
       const isHOTP = secret.type && secret.type.toUpperCase() === 'HOTP';
+      const categoryDisplay = secret.category ? '<span class="secret-category">' + secret.category + '</span>' : '';
 
       return '<div class="secret-card" onclick="copyOTPFromCard(event, &quot;' + secret.id + '&quot;)" title="点击卡片复制验证码">' +
         // TOTP 显示进度条，HOTP 不显示
@@ -222,7 +228,7 @@ export function getCoreCode() {
               ) +
             '</div>' +
             '<div class="secret-text">' +
-            '<h3>' + secret.name + (isHOTP ? ' <span style="font-size: 11px; color: var(--text-tertiary); font-weight: 500;">[HOTP]</span>' : '') + '</h3>' +
+            '<h3>' + secret.name + (isHOTP ? ' <span style="font-size: 11px; color: var(--text-tertiary); font-weight: 500;">[HOTP]</span>' : '') + categoryDisplay + '</h3>' +
             (secret.account ? '<p>' + secret.account + '</p>' : '') +
             (isHOTP ? '<p style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">计数器: ' + (secret.counter || 0) + '</p>' : '') +
             '</div>' +
@@ -503,6 +509,7 @@ export function getCoreCode() {
       document.getElementById('secretId').value = id;
       document.getElementById('secretName').value = secret.name;
       document.getElementById('secretService').value = secret.account || '';
+      document.getElementById('secretCategory').value = secret.category || '';
       document.getElementById('secretKey').value = secret.secret;
       
       // 填充高级参数
@@ -626,6 +633,7 @@ export function getCoreCode() {
 
       const name = document.getElementById('secretName').value.trim();
       const account = document.getElementById('secretService').value.trim();
+      const category = document.getElementById('secretCategory').value.trim();
       const secret = document.getElementById('secretKey').value.trim().toUpperCase();
 
       // 获取高级参数
@@ -654,6 +662,7 @@ export function getCoreCode() {
           const data = {
             name,
             account: account,
+            category: category,
             secret,
             type,
             digits,
@@ -706,6 +715,12 @@ export function getCoreCode() {
             }
 
             await renderSecrets();
+
+            // 更新分类过滤器
+            if (typeof updateCategoryFilter === 'function') {
+              updateCategoryFilter();
+            }
+
             hideSecretModal();
           } else {
             const error = await response.json();

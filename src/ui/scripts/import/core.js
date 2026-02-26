@@ -111,35 +111,63 @@ export function getPreviewImportCode() {
                           text.includes('class="otp-entry"') ||
                           text.includes('Ente Auth');
       if (isHtmlFormat) {
-        const htmlLines = parseHTMLImport(text);
-        if (htmlLines.length === 0) {
+        const parsedResult = parseHTMLImport(text);
+        if (parsedResult.length === 0) {
           showCenterToast('❌', '未从HTML文件中提取到有效密钥');
           return;
         }
-        lines = htmlLines;
+        // 检测返回的是对象数组（含category）还是字符串数组
+        if (parsedResult[0] && parsedResult[0].otpauthUrl) {
+          window.__importParsedItems = parsedResult;
+          lines = parsedResult.map(item => item.otpauthUrl);
+        } else {
+          lines = parsedResult;
+          window.__importParsedItems = null;
+        }
       }
       // 检测并解析JSON格式
       else if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
         try {
           const jsonData = JSON.parse(text);
-          lines = parseJsonImport(jsonData);
+          const parsedResult = parseJsonImport(jsonData);
+          
+          // 检测返回的是对象数组（含category）还是字符串数组
+          if (parsedResult && parsedResult.length > 0 && parsedResult[0] && parsedResult[0].otpauthUrl) {
+            window.__importParsedItems = parsedResult;
+            lines = parsedResult.map(item => item.otpauthUrl);
+          } else if (Array.isArray(parsedResult)) {
+            lines = parsedResult;
+            window.__importParsedItems = null;
+          } else {
+            lines = [];
+            window.__importParsedItems = null;
+          }
+          
           if (lines.length === 0) {
             showCenterToast('❌', '未找到有效的密钥数据');
             return;
           }
         } catch (jsonError) {
           console.log('JSON解析失败,按OTPAuth URL格式解析:', jsonError.message);
+          window.__importParsedItems = null;
         }
       }
       // 检测并解析CSV格式
       else if (text.includes('服务名称,账户信息,密钥') ||
                (text.toLowerCase().includes('service') && text.toLowerCase().includes('secret') && text.includes(','))) {
-        const csvLines = parseCSVImport(text);
-        if (csvLines.length === 0) {
+        const parsedResult = parseCSVImport(text);
+        if (parsedResult.length === 0) {
           showCenterToast('❌', '未从CSV文件中提取到有效密钥');
           return;
         }
-        lines = csvLines;
+        // 检测返回的是对象数组（含category）还是字符串数组
+        if (parsedResult[0] && parsedResult[0].otpauthUrl) {
+          window.__importParsedItems = parsedResult;
+          lines = parsedResult.map(item => item.otpauthUrl);
+        } else {
+          lines = parsedResult;
+          window.__importParsedItems = null;
+        }
       }
 
       lines.forEach((line, index) => {
@@ -203,11 +231,18 @@ export function getPreviewImportCode() {
               if (validateBase32(secret)) {
                 item.className += ' valid';
 
+                // 检查是否有从解析器保存的 category 信息
+                let category = '';
+                if (window.__importParsedItems && window.__importParsedItems[index]) {
+                  category = window.__importParsedItems[index].category || '';
+                }
+
                 let displayInfo = serviceName;
                 if (type === 'hotp') displayInfo += ' [HOTP]';
                 if (digits !== 6) displayInfo += ' [' + digits + '位]';
                 if (period !== 30 && type === 'totp') displayInfo += ' [' + period + 's]';
                 if (algorithm !== 'SHA1') displayInfo += ' [' + algorithm + ']';
+                if (category) displayInfo += ' [' + category + ']';
 
                 item.innerHTML =
                   '<div class="service-name">✅ ' + displayInfo + '</div>' +
@@ -222,6 +257,7 @@ export function getPreviewImportCode() {
                   period: period,
                   algorithm: algorithm,
                   counter: counter,
+                  category: category,
                   valid: true,
                   line: index + 1
                 });
@@ -295,7 +331,8 @@ export function getExecuteImportCode() {
           digits: item.digits || 6,
           period: item.period || 30,
           algorithm: item.algorithm || 'SHA1',
-          counter: item.counter || 0
+          counter: item.counter || 0,
+          category: item.category || ''
         }));
 
         const response = await authenticatedFetch('/api/secrets/batch', {
@@ -366,7 +403,8 @@ export function getExecuteImportCode() {
               digits: item.digits || 6,
               period: item.period || 30,
               algorithm: item.algorithm || 'SHA1',
-              counter: item.counter || 0
+              counter: item.counter || 0,
+              category: item.category || ''
             })
           });
 

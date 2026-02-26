@@ -396,7 +396,8 @@ export function getExportCode() {
             type: type,
             digits: secret.digits || 6,
             period: secret.period || 30,
-            algorithm: secret.algorithm || 'SHA1'
+            algorithm: secret.algorithm || 'SHA1',
+            category: secret.category || ''
           };
           // HOTP 类型才需要 counter
           if (type.toUpperCase() === 'HOTP') {
@@ -422,7 +423,7 @@ export function getExportCode() {
     async function exportAsCSV(sortedSecrets, options = {}) {
       const filenamePrefix = options.filenamePrefix || '2FA-secrets';
       // CSV header
-      const headers = ['服务名称', '账户信息', '密钥', '类型', '位数', '周期(秒)', '算法', '计数器'];
+      const headers = ['服务名称', '账户信息', '密钥', '类型', '位数', '周期(秒)', '算法', '计数器', '分类'];
       const csvRows = [headers.join(',')];
 
       // CSV rows
@@ -436,7 +437,8 @@ export function getExportCode() {
           secret.digits || 6,
           secret.period || 30,
           escapeCSV(secret.algorithm || 'SHA1'),
-          type === 'HOTP' ? (secret.counter || 0) : ''
+          type === 'HOTP' ? (secret.counter || 0) : '',
+          escapeCSV(secret.category || '')
         ];
         csvRows.push(row.join(','));
       });
@@ -573,13 +575,14 @@ export function getExportCode() {
           '      <thead>\\n' +
           '        <tr>\\n' +
           '          <th style="width: 15%;">服务名称</th>\\n' +
-          '          <th style="width: 18%;">账户名称</th>\\n' +
-          '          <th style="width: 30%;">密钥</th>\\n' +
-          '          <th style="width: 8%;">类型</th>\\n' +
-          '          <th style="width: 7%;">位数</th>\\n' +
-          '          <th style="width: 7%;">周期</th>\\n' +
-          '          <th style="width: 7%;">算法</th>\\n' +
-          '          <th style="width: 8%;">二维码</th>\\n' +
+          '          <th style="width: 12%;">账户名称</th>\\n' +
+          '          <th style="width: 8%;">分类</th>\\n' +
+          '          <th style="width: 22%;">密钥</th>\\n' +
+          '          <th style="width: 6%;">类型</th>\\n' +
+          '          <th style="width: 5%;">位数</th>\\n' +
+          '          <th style="width: 5%;">周期</th>\\n' +
+          '          <th style="width: 5%;">算法</th>\\n' +
+          '          <th style="width: 7%;">二维码</th>\\n' +
           '        </tr>\\n' +
           '      </thead>\\n' +
           '      <tbody>\\n');
@@ -589,6 +592,7 @@ export function getExportCode() {
           htmlParts.push('        <tr>\\n' +
             '          <td class="service">' + escapeHTML(data.serviceName) + '</td>\\n' +
             '          <td class="account">' + escapeHTML(data.accountName || '-') + '</td>\\n' +
+            '          <td class="category">' + escapeHTML(data.secret.category || '-') + '</td>\\n' +
             '          <td class="secret">' + escapeHTML(data.secret.secret.toUpperCase()) + '</td>\\n' +
             '          <td class="param">' + escapeHTML(data.secret.type || 'TOTP') + '</td>\\n' +
             '          <td class="param">' + (data.secret.digits || 6) + '</td>\\n' +

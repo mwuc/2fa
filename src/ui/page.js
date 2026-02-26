@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UI页面生成模块 - 完整版本
  * 包含所有原版功能：搜索、导入导出、二维码、编辑删除等
  * 支持代码分割和懒加载优化
@@ -122,7 +122,7 @@ function getHTMLBody() {
                    id="searchInput"
                    name="search-query"
                    class="search-input"
-                   placeholder="搜索服务或账户名称"
+                   placeholder="搜索服务、账户或分类"
                    oninput="filterSecrets(this.value)"
                    autocomplete="off"
                    autocorrect="off"
@@ -138,6 +138,11 @@ function getHTMLBody() {
                    onfocus="this.removeAttribute('readonly')">
             <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display: none;">✕</button>
       </div>
+          <div class="filter-controls">
+            <select id="categoryFilter" class="category-filter" onchange="filterByCategory(this.value)">
+              <option value="">全部分类</option>
+            </select>
+          </div>
           <div class="sort-controls">
             <select id="sortSelect" class="sort-select" onchange="applySorting()">
               <option value="oldest-first">最早添加</option>
@@ -242,6 +247,12 @@ function getHTMLBody() {
         <div class="form-group">
           <label for="secretService">账户名称</label>
           <input type="text" id="secretService" placeholder="例如：your@email.com 或 用户名" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="secretCategory">分类</label>
+          <input type="text" id="secretCategory" placeholder="例如：Google、GitHub、社交媒体" autocomplete="off" list="categorySuggestions">
+          <datalist id="categorySuggestions"></datalist>
         </div>
 
         <div class="form-group">

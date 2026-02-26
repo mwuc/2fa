@@ -12,6 +12,7 @@ export function getSearchCode() {
 
     // 排序相关变量
     let currentSortType = 'oldest-first';
+    let currentCategoryFilter = '';
 
     // 从 localStorage 恢复排序选择
     function restoreSortPreference() {
@@ -40,55 +41,111 @@ export function getSearchCode() {
       }
     }
 
-    // 搜索过滤功能
-    async function filterSecrets(query) {
-      const trimmedQuery = query.trim().toLowerCase();
-      currentSearchQuery = trimmedQuery;
+    // 更新分类下拉列表
+    function updateCategoryFilter() {
+      const categoryFilter = document.getElementById('categoryFilter');
+      const categorySuggestions = document.getElementById('categorySuggestions');
+      if (!categoryFilter) return;
+
+      // 收集所有分类
+      const categories = new Set();
+      secrets.forEach(secret => {
+        if (secret.category && secret.category.trim()) {
+          categories.add(secret.category.trim());
+        }
+      });
+
+      // 保存当前选中的分类
+      const currentValue = categoryFilter.value;
+
+      // 重新生成选项
+      let options = '<option value="">全部分类</option>';
+      let datalistOptions = '';
+      Array.from(categories).sort().forEach(cat => {
+        options += '<option value="' + cat + '">' + cat + '</option>';
+        datalistOptions += '<option value="' + cat + '">';
+      });
+      categoryFilter.innerHTML = options;
+
+      // 更新 datalist 用于输入建议
+      if (categorySuggestions) {
+        categorySuggestions.innerHTML = datalistOptions;
+      }
+
+      // 恢复选中的分类（如果仍然存在）
+      if (currentValue && categories.has(currentValue)) {
+        categoryFilter.value = currentValue;
+      }
+    }
+
+    // 分类过滤功能
+    async function filterByCategory(category) {
+      currentCategoryFilter = category;
+      await applyFilters();
+    }
+
+    // 应用搜索和分类过滤
+    async function applyFilters() {
+      const searchInput = document.getElementById('searchInput');
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      currentSearchQuery = query;
 
       const searchClear = document.getElementById('searchClear');
       const searchStats = document.getElementById('searchStats');
 
-      if (trimmedQuery) {
+      if (query) {
         searchClear.style.display = 'block';
       } else {
         searchClear.style.display = 'none';
       }
 
-      if (!trimmedQuery) {
-        filteredSecrets = [...secrets];
-        searchStats.style.display = 'none';
-        await renderFilteredSecrets();
-        return;
+      // 先按分类过滤
+      let result = secrets;
+      if (currentCategoryFilter) {
+        result = result.filter(secret => secret.category === currentCategoryFilter);
       }
 
-      filteredSecrets = secrets.filter(secret => {
-        const serviceName = secret.name.toLowerCase();
-        const accountName = (secret.account || '').toLowerCase();
-        return serviceName.includes(trimmedQuery) || accountName.includes(trimmedQuery);
-      });
-
-      const totalCount = secrets.length;
-      const foundCount = filteredSecrets.length;
-
-      if (foundCount === 0) {
-        searchStats.textContent = '未找到匹配的密钥';
-        searchStats.style.color = '#e74c3c';
-      } else if (foundCount === totalCount) {
-        searchStats.textContent = '显示所有 ' + totalCount + ' 个密钥';
-        searchStats.style.color = '#27ae60';
-      } else {
-        searchStats.textContent = '找到 ' + foundCount + ' 个匹配密钥（共 ' + totalCount + ' 个）';
-        searchStats.style.color = '#3498db';
+      // 再按搜索词过滤
+      if (query) {
+        result = result.filter(secret => {
+          const serviceName = secret.name.toLowerCase();
+          const accountName = (secret.account || '').toLowerCase();
+          const categoryName = (secret.category || '').toLowerCase();
+          return serviceName.includes(query) || accountName.includes(query) || categoryName.includes(query);
+        });
       }
-      searchStats.style.display = 'block';
+
+      filteredSecrets = result;
+
+      if (searchStats) {
+        const totalCount = secrets.length;
+        const foundCount = filteredSecrets.length;
+
+        if (foundCount === 0) {
+          searchStats.textContent = '未找到匹配的密钥';
+          searchStats.style.color = '#e74c3c';
+        } else if (foundCount === totalCount && !currentCategoryFilter) {
+          searchStats.textContent = '显示所有 ' + totalCount + ' 个密钥';
+          searchStats.style.color = '#27ae60';
+        } else {
+          searchStats.textContent = '找到 ' + foundCount + ' 个匹配密钥（共 ' + totalCount + ' 个）';
+          searchStats.style.color = '#3498db';
+        }
+        searchStats.style.display = 'block';
+      }
 
       await renderFilteredSecrets();
+    }
+
+    // 搜索过滤功能
+    async function filterSecrets(query) {
+      await applyFilters();
     }
 
     // 清除搜索
     function clearSearch() {
       document.getElementById('searchInput').value = '';
-      filterSecrets('');
+      applyFilters();
       document.getElementById('searchInput').focus();
     }
 

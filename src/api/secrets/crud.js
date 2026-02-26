@@ -113,6 +113,7 @@ export async function handleAddSecret(request, env) {
 			period: secretData.period,
 			algorithm: secretData.algorithm,
 			counter: secretData.type === 'HOTP' ? secretData.counter : undefined,
+			category: secretData.category || '',
 		};
 
 		existingSecrets.push(newSecret);
@@ -216,6 +217,7 @@ export async function handleUpdateSecret(request, env) {
 			existingSecret.digits !== secretData.digits ||
 			existingSecret.period !== secretData.period ||
 			existingSecret.algorithm !== secretData.algorithm ||
+			(existingSecret.category || '') !== (secretData.category || '') ||
 			(secretData.type === 'HOTP' && existingSecret.counter !== secretData.counter);
 
 		// 更新密钥对象
@@ -229,6 +231,7 @@ export async function handleUpdateSecret(request, env) {
 			period: secretData.period,
 			algorithm: secretData.algorithm,
 			counter: secretData.type === 'HOTP' ? secretData.counter : undefined,
+			category: secretData.category || '',
 		};
 
 		existingSecrets[secretIndex] = updatedSecret;

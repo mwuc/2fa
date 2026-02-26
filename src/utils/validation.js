@@ -207,6 +207,12 @@ export const addSecretSchema = new Schema({
 			return (num >= 0 && Number.isInteger(num)) || 'HOTP计数器必须是非负整数';
 		},
 	},
+	category: {
+		required: false,
+		type: 'string',
+		default: '',
+		transform: (v) => (v ? v.trim() : ''),
+	},
 });
 
 /**
@@ -418,18 +424,19 @@ export function validateOTPParams({ type = 'TOTP', digits = 6, period = 30, algo
  * 创建标准化的密钥对象
  * @param {Object} data - 密钥数据
  * @param {string} data.name - 服务名称
- * @param {string} data.service - 账户名称（可选）
- * @param {string} data.secret - Base32密钥
- * @param {string} data.type - OTP类型
- * @param {number} data.digits - 验证码位数
- * @param {number} data.period - TOTP周期
- * @param {string} data.algorithm - 哈希算法
- * @param {number} data.counter - HOTP计数器
+ * @param {string} data.service - 账户名称
+ * @param {string} data.secret - Base32格式密钥
+ * @param {string} [data.type='TOTP'] - OTP类型 (TOTP/HOTP/STEAM)
+ * @param {number} [data.digits=6] - 验证码位数
+ * @param {number} [data.period=30] - TOTP周期（秒）
+ * @param {string} [data.algorithm='SHA1'] - 哈希算法
+ * @param {number} [data.counter=0] - HOTP计数器
+ * @param {string} [data.category=''] - 分类名称
  * @param {string} existingId - 现有ID（用于更新）
  * @returns {Object} 标准化的密钥对象
  */
 export function createSecretObject(
-	{ name, service, secret, type = 'TOTP', digits = 6, period = 30, algorithm = 'SHA1', counter = 0 },
+	{ name, service, secret, type = 'TOTP', digits = 6, period = 30, algorithm = 'SHA1', counter = 0, category = '' },
 	existingId = null,
 ) {
 	const normalizedType = type.toUpperCase();
@@ -444,6 +451,7 @@ export function createSecretObject(
 		period: parseInt(period),
 		algorithm: algorithm.toUpperCase(),
 		counter: normalizedType === 'HOTP' ? parseInt(counter) : undefined,
+		category: category ? category.trim() : '',
 	};
 
 	// 如果是新建密钥，添加创建时间

@@ -289,6 +289,34 @@ export function getBaseStyles() {
       flex-shrink: 0;
     }
 
+    .filter-controls {
+      flex-shrink: 0;
+    }
+
+    .category-filter {
+      padding: 10px 12px;
+      border: 2px solid var(--border-primary);
+      border-radius: 8px;
+      background: var(--input-bg-focus);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+      min-width: 120px;
+      height: 46px;
+      box-sizing: border-box;
+    }
+
+    .category-filter:hover {
+      border-color: var(--border-focus);
+    }
+
+    .category-filter:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    }
+
     .sort-select {
       padding: 10px 12px;
       border: 2px solid var(--border-primary);

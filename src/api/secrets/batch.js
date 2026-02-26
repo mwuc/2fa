@@ -103,6 +103,7 @@ export async function handleBatchAddSecrets(request, env) {
 					period: validated.period,
 					algorithm: validated.algorithm,
 					counter: validated.type === 'HOTP' ? validated.counter : undefined,
+					category: validated.category,
 				};
 
 				// 添加到现有列表
