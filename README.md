@@ -22,7 +22,7 @@
 
 ### 一键部署（推荐）
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/wuzf/2fa)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mwuc/2fa)
 
 1. 点击上方按钮，使用 GitHub 登录并授权
 2. 登录 Cloudflare 账户，点击 **Deploy** 等待部署完成（KV 存储自动创建）
